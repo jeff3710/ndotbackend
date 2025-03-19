@@ -1,0 +1,135 @@
+openapi: 3.0.3
+info:
+  title: Ndot Device Management API
+  version: 1.0.0
+  description: REST API for network device management with SNMP capabilities
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Development server
+
+paths:
+  /devices:
+    get:
+      summary: 获取设备列表
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: 设备列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+    post:
+      summary: 创建新设备
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceCreateRequest'
+      responses:
+        '201':
+          description: 设备创建成功
+
+  /devices/{id}:
+    get:
+      summary: 获取设备详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 设备详细信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceDetail'
+
+components:
+  schemas:
+    Device:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        ip_address:
+          type: string
+          format: ipv4
+        status:
+          type: string
+          enum: [active, inactive]
+    DeviceCreateRequest:
+      type: object
+      required:
+        - name
+        - ip_address
+        - snmp_community
+      properties:
+        name:
+          type: string
+        ip_address:
+          type: string
+          format: ipv4
+        snmp_community:
+          type: string
+          description: SNMP认证社区名
+        snmp_port:
+          type: integer
+          default: 161
+    DeviceDetail:
+      allOf:
+        - $ref: '#/components/schemas/Device'
+        - type: object
+          properties:
+            created_at:
+              type: string
+              format: date-time
+            snmp_config:
+              type: object
+              properties:
+                community:
+                  type: string
+                port:
+                  type: integer
+
+  responses:
+    BadRequest:
+      description: 无效请求参数
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                example: 400
+              message:
+                type: string
+                example: 无效的请求参数
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

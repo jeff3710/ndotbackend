@@ -1,0 +1,38 @@
+# 忽略日志文件
+logs/
+*.log
+
+# 本地数据库数据
+postgres-data/
+
+# 开发环境配置
+config.yaml
+
+# 依赖目录
+vendor/
+node_modules/
+
+# 编辑器文件
+.vscode/
+.idea/
+
+# 编译输出
+bin/
+dist/
+
+# 测试相关
+coverage/
+
+# 环境文件
+.env
+.env.local
+
+# 二进制文件
+*.exe
+*.dll
+*.so
+*.dylib
+
+# 缓存文件
+__pycache__/
+*.py[cod]
