@@ -1,53 +1,59 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/jeff3710/ndot/config"
-	db "github.com/jeff3710/ndot/db/sqlc"
-	"github.com/jeff3710/ndot/internal/ndot/repository"
-	"github.com/jeff3710/ndot/internal/ndot/service"
-	"github.com/jeff3710/ndot/pkg/snmp"
+	"context"
+	"errors"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/jeff3710/ndot/internal/pkg/model"
 )
 
-type Server struct {
-	config  config.Config
-	service *service.DeviceService
-	router  *gin.Engine
-	snmp    *snmp.SNMPClient
-}
+// type Server struct {
+// 	config  server.Config
+// 	service service.DeviceServiceInterface
+// 	router  *gin.Engine
+// 	snmp    snmp.SNMPClientInterface
+// }
 
-func NewServer(config config.Config, store db.Store, snmp *snmp.SNMPClient) *Server {
-	deviceService := service.NewDeviceService(repository.NewDeviceRepository(store), snmp)
-	server := &Server{
-		config:  config,
-		service: deviceService,
+// func NewServer(config server.Config, deviceService service.DeviceServiceInterface, snmp snmp.SNMPClientInterface) *Server {
+// 	server := &Server{
+// 		config:  config,
+// 		service: deviceService,
+// 	}
+// 	server.setupRoutes()
+// 	return server
+// }
+
+// func (s *Server) setupRoutes() {
+// 	router := gin.Default()
+
+// 	router.GET("/ping", func(c *gin.Context) {
+// 		c.JSON(200, gin.H{
+// 			"message": "pong",
+// 		})
+// 	})
+
+// 	v1 := router.Group("/v1")
+// 	{
+
+// 		v1.POST("/devices", s.CollectDevice)
+// 	}
+
+// 	s.router = router
+// }
+
+// func (s *Server) Start(address string) error {
+// 	return s.router.Run(address)
+// }
+
+func errorResponse(err error) *model.ErrorResponse {
+	// 根据错误类型细化状态码
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return &model.ErrorResponse{HTTPStatus: 504, Code: "GATEWAY_TIMEOUT", Message: "请求超时"}
+	case errors.As(err, &validator.ValidationErrors{}):
+		return &model.ErrorResponse{HTTPStatus: 422, Code: "VALIDATION_ERROR", Message: "参数校验失败", Details: err.Error()}
+	default:
+		return &model.ErrorResponse{HTTPStatus: 500, Code: "INTERNAL_ERROR", Message: "服务器内部错误"}
 	}
-	server.setupRoutes()
-	return server
-}
-
-func (s *Server) setupRoutes() {
-	router := gin.Default()
-
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-
-	v1 := router.Group("/v1")
-	{
-
-		v1.POST("/devices", s.CollectDevice)
-	}
-
-	s.router = router
-}
-
-func (s *Server) Start(address string) error {
-	return s.router.Run(address)
-}
-
-func errorResponse(err error) gin.H {
-	return gin.H{"error": err.Error()}
 }

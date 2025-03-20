@@ -1,155 +1,179 @@
 package log
 
 import (
-	"os"
+	"context"
+	"sync"
 	"time"
 
+	"github.com/jeff3710/ndot/internal/pkg/known"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+// Logger 接口定义
+type Logger interface {
+	Debugw(msg string, keysAndValues ...interface{})
+	Infow(msg string, keysAndValues ...interface{})
+	Warnw(msg string, keysAndValues ...interface{})
+	Errorw(msg string, keysAndValues ...interface{})
+	Panicw(msg string, keysAndValues ...interface{})
+	Fatalw(msg string, keysAndValues ...interface{})
+	Sync()
+}
+
+// zapLogger 实现 Logger 接口
+type zapLogger struct {
+	z *zap.Logger
+}
+
+// 确保zapLogger实现了Logger接口
+var _ Logger = &zapLogger{}
 
 var (
-	_logger *zap.Logger // zap ensure that zap.Logger is safe for concurrent use
+	mu  sync.Mutex
+	std = NewLogger(NewOptions())
 )
 
-func init() {
-	cfg := zap.NewProductionConfig()
-	cfg.EncoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+// Init 初始化日志
+func Init(opts *Options) {
+	mu.Lock()
+	defer mu.Unlock()
+	std = NewLogger(opts)
+}
+
+func NewLogger(opts *Options) *zapLogger {
+	if opts == nil {
+		opts = NewOptions()
+	}
+
+	var zapLevel zapcore.Level
+	if err := zapLevel.UnmarshalText([]byte(opts.Level)); err != nil {
+		zapLevel = zapcore.InfoLevel
+	}
+
+	// 根据格式选择编码器配置
+	var encoderConfig zapcore.EncoderConfig
+	if opts.Format == "console" {
+		encoderConfig = zap.NewDevelopmentEncoderConfig()
+	} else {
+		encoderConfig = zap.NewProductionEncoderConfig()
+	}
+	// 自定义 MessageKey 为 message，message 语义更明确
+	encoderConfig.MessageKey = "message"
+	// 自定义 TimeKey 为 timestamp，timestamp 语义更明确
+	encoderConfig.TimeKey = "timestamp"
+	// 指定时间序列化函数，将时间序列化为 `2006-01-02 15:04:05.000` 格式，更易读
+	encoderConfig.EncodeTime = func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 		enc.AppendString(t.Format("2006-01-02 15:04:05.000"))
 	}
+	// 指定 time.Duration 序列化函数，将 time.Duration 序列化为经过的毫秒数的浮点数
+	// 毫秒数比默认的秒数更精确
+	encoderConfig.EncodeDuration = func(d time.Duration, enc zapcore.PrimitiveArrayEncoder) {
+		enc.AppendFloat64(float64(d) / float64(time.Millisecond))
+	}
+	cfg := &zap.Config{
+		DisableCaller:     opts.DisableCaller,
+		DisableStacktrace: opts.DisableStacktrace,
+		Level:             zap.NewAtomicLevelAt(zapLevel),
+		Encoding:          opts.Format,
+		EncoderConfig:     encoderConfig,
+		OutputPaths:       opts.OutputPaths,
+		ErrorOutputPaths:  []string{"stderr"},
+	}
+	z, err := cfg.Build(zap.AddStacktrace(zapcore.PanicLevel), zap.AddCallerSkip(1))
+	if err != nil {
+		panic(err)
+	}
+	logger := &zapLogger{
+		z: z,
+	}
+	zap.ReplaceGlobals(z)
+	return logger
 
-	var cores = []zapcore.Core{
-		zapcore.NewCore(
-			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
-			zapcore.Lock(os.Stdout),
-			zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-				return level <= zapcore.InfoLevel
-			}),
-		),
-		zapcore.NewCore(
-			zapcore.NewJSONEncoder(cfg.EncoderConfig),
-			zapcore.AddSync(&lumberjack.Logger{
-				Filename:   "logs/ndot.log",
-				MaxSize:    100,
-				MaxAge:     7,
-				MaxBackups: 3,
-				Compress:   true,
-			}),
-			zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-				return level <= zapcore.InfoLevel
-			}),
-		),
-		zapcore.NewCore(
-			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
-			zapcore.Lock(os.Stdout),
-			zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-				return level > zapcore.InfoLevel
-			}),
-		),
-		zapcore.NewCore(
-			zapcore.NewJSONEncoder(cfg.EncoderConfig),
-			zapcore.AddSync(&lumberjack.Logger{
-				Filename:   "logs/ndot-error.log",
-				MaxSize:    100,
-				MaxAge:     7,
-				MaxBackups: 3,
-				Compress:   true,
-			}),
-			zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-				return level > zapcore.InfoLevel
-			}),
-		),
+}
+
+func Sync() { std.Sync() }
+
+// Sync implements Logger.
+func (l *zapLogger) Sync() {
+	_ = l.z.Sync()
+}
+
+// Debugw 输出 debug 级别的日志.
+func Debugw(msg string, keysAndValues ...interface{}) {
+	std.z.Sugar().Debugw(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Debugw(msg string, keysAndValues ...interface{}) {
+	l.z.Sugar().Debugw(msg, keysAndValues...)
+}
+
+// Infow 输出 info 级别的日志.
+func Infow(msg string, keysAndValues ...interface{}) {
+	std.z.Sugar().Infow(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Infow(msg string, keysAndValues ...interface{}) {
+	l.z.Sugar().Infow(msg, keysAndValues...)
+}
+
+// Warnw 输出 warning 级别的日志.
+func Warnw(msg string, keysAndValues ...interface{}) {
+	std.z.Sugar().Warnw(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Warnw(msg string, keysAndValues ...interface{}) {
+	l.z.Sugar().Warnw(msg, keysAndValues...)
+}
+
+// Errorw 输出 error 级别的日志.
+func Errorw(msg string, keysAndValues ...interface{}) {
+	std.z.Sugar().Errorw(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Errorw(msg string, keysAndValues ...interface{}) {
+	l.z.Sugar().Errorw(msg, keysAndValues...)
+}
+
+// Panicw 输出 panic 级别的日志.
+func Panicw(msg string, keysAndValues ...interface{}) {
+	std.z.Sugar().Panicw(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Panicw(msg string, keysAndValues ...interface{}) {
+	l.z.Sugar().Panicw(msg, keysAndValues...)
+}
+
+// Fatalw 输出 fatal 级别的日志.
+func Fatalw(msg string, keysAndValues ...interface{}) {
+	std.z.Sugar().Fatalw(msg, keysAndValues...)
+}
+
+func (l *zapLogger) Fatalw(msg string, keysAndValues ...interface{}) {
+	l.z.Sugar().Fatalw(msg, keysAndValues...)
+}
+
+// C 解析传入的 context，尝试提取关注的键值，并添加到 zap.Logger 结构化日志中.
+func C(ctx context.Context) *zapLogger {
+	return std.C(ctx)
+}
+
+func (l *zapLogger) C(ctx context.Context) *zapLogger {
+	lc := l.clone()
+
+	if requestID := ctx.Value(known.XRequestIDKey); requestID != nil {
+		lc.z = lc.z.With(zap.Any(known.XRequestIDKey, requestID))
 	}
 
-	_logger = zap.New(zapcore.NewTee(cores...), zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
+	if userID := ctx.Value(known.XUsernameKey); userID != nil {
+		lc.z = lc.z.With(zap.Any(known.XUsernameKey, userID))
+	}
+
+	return lc
 }
 
-type Field = zap.Field
-
-// function variables for all field types
-// in github.com/uber-go/zap/field.go
-
-var (
-	Skip        = zap.Skip
-	Binary      = zap.Binary
-	Bool        = zap.Bool
-	Boolp       = zap.Boolp
-	ByteString  = zap.ByteString
-	Complex128  = zap.Complex128
-	Complex128p = zap.Complex128p
-	Complex64   = zap.Complex64
-	Complex64p  = zap.Complex64p
-	Float64     = zap.Float64
-	Float64p    = zap.Float64p
-	Float32     = zap.Float32
-	Float32p    = zap.Float32p
-	Int         = zap.Int
-	Intp        = zap.Intp
-	Int64       = zap.Int64
-	Int64p      = zap.Int64p
-	Int32       = zap.Int32
-	Int32p      = zap.Int32p
-	Int16       = zap.Int16
-	Int16p      = zap.Int16p
-	Int8        = zap.Int8
-	Int8p       = zap.Int8p
-	String      = zap.String
-	Stringp     = zap.Stringp
-	Uint        = zap.Uint
-	Uintp       = zap.Uintp
-	Uint64      = zap.Uint64
-	Uint64p     = zap.Uint64p
-	Uint32      = zap.Uint32
-	Uint32p     = zap.Uint32p
-	Uint16      = zap.Uint16
-	Uint16p     = zap.Uint16p
-	Uint8       = zap.Uint8
-	Uint8p      = zap.Uint8p
-	Uintptr     = zap.Uintptr
-	Uintptrp    = zap.Uintptrp
-	Reflect     = zap.Reflect
-	Namespace   = zap.Namespace
-	Stringer    = zap.Stringer
-	Time        = zap.Time
-	Timep       = zap.Timep
-	Stack       = zap.Stack
-	StackSkip   = zap.StackSkip
-	Duration    = zap.Duration
-	Durationp   = zap.Durationp
-	Any         = zap.Any
-	NamedError  = zap.NamedError
-)
-
-func Debugf(msg string, fields ...Field) {
-	_logger.Debug(msg, fields...)
-}
-
-func Infof(msg string, fields ...Field) {
-	_logger.Info(msg, fields...)
-}
-
-func Warnf(msg string, fields ...Field) {
-	_logger.Warn(msg, fields...)
-}
-
-func Errorf(msg string, fields ...Field) {
-	_logger.Error(msg, fields...)
-}
-func DPanicf(msg string, fields ...Field) {
-	_logger.DPanic(msg, fields...)
-}
-func Panicf(msg string, fields ...Field) {
-	_logger.Panic(msg, fields...)
-}
-func Fatalf(msg string, fields ...Field) {
-	_logger.Fatal(msg, fields...)
-}
-
-func Sync() error {
-	return _logger.Sync()
-}
-
-func GetLogger() *zap.Logger {
-	return _logger
+// clone 深度拷贝 zapLogger.
+func (l *zapLogger) clone() *zapLogger {
+	lc := *l
+	return &lc
 }

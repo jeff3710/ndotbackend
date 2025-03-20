@@ -2,60 +2,67 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jeff3710/ndot/api"
-	"github.com/jeff3710/ndot/config"
-	db "github.com/jeff3710/ndot/db/sqlc"
+	"github.com/gin-gonic/gin"
+	"github.com/jeff3710/ndot/api/route"
 	"github.com/jeff3710/ndot/pkg/log"
-	"github.com/jeff3710/ndot/pkg/snmp"
+	"github.com/jeff3710/ndot/server"
 )
 
 func main() {
-
-	config, err := config.LoadConfig()
-	if err != nil {
-		log.Fatalf("failed to load config.Database:",log.String("err",err.Error()) )
-	}
-	connStr := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		config.Database.Host,
-		config.Database.Port,
-		config.Database.User,
-		config.Database.Password,
-		config.Database.Name,
-		config.Database.SSLMode,
-	)
-	poolConfig, err := pgxpool.ParseConfig(connStr)
-	if err != nil {
-		return  
+	app := server.App()
+	config := app.Config
+	options := &log.Options{
+		DisableCaller:     config.Log.DisableCaller,
+		DisableStacktrace: config.Log.DisableStacktrace,
+		Level:             config.Log.Level,
+		Format:            config.Log.Format,
+		OutputPaths:       config.Log.OutputPaths,
 	}
 
-	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
-	if err != nil {
-		return 
-	}
+	log.Init(options)
+	log.Infow("sugarlog config port", "端口", config.App.Port)
+	defer log.Sync()
 
-	// 测试数据库连接
-	if err := pool.Ping(context.Background()); err != nil {
-		log.Fatalf("数据库连接测试失败:", log.String("err", err.Error()))
+	pool := app.Pool
+	defer pool.Close()
+
+	gin := gin.Default()
+	route.Setup(config, pool, gin)
+
+	addr := fmt.Sprintf(":%d", config.App.Port)
+
+	httpsrv := startInsecureServer(gin, addr)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Infow("shutting down server at ", "addr", addr)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := httpsrv.Shutdown(ctx); err != nil {
+		log.Fatalw("server forced to shutdown: %v", err)
 	}
-	store:=db.NewStore(pool)
-	snmp:= snmp.NewSNMPClient(config)
-	runServer(store,*config,snmp)
 
 }
 
-func runServer(store db.Store, config config.Config,snmp *snmp.SNMPClient) {
-	server:= api.NewServer(config, store,snmp)
-	// if err!= nil {
-	// 	log.Fatalf("创建服务器失败:", log.String("err", err.Error()))
-	// }
-// 将 int 类型的端口转换为 string 类型
-portStr := fmt.Sprintf(":%d", config.App.Port)
-err := server.Start(portStr)
-	if err!= nil {
-		log.Fatalf("服务器启动失败:", log.String("err", err.Error()))
-	}
+func startInsecureServer(g *gin.Engine, addr string) *http.Server {
+	httpsrv := &http.Server{Addr: addr, Handler: g}
+
+	log.Infow("start insecure server")
+	go func() {
+		if err := httpsrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalw("http server listen: %s\n", err)
+		}
+	}()
+	return httpsrv
+
 }

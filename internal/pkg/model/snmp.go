@@ -4,13 +4,14 @@ package model
 
 // SNMP 连接参数（HTTP 请求体）
 type SNMPRequest struct {
-    IP              string `json:"ip" binding:"required,ipv4"`
-    SNMPVersion     string `json:"snmp_version" binding:"required,oneof=v3"`
-    Username        string `json:"username"`       // SNMPv3 用户名
-    AuthPassword    string `json:"auth_password"`  // 认证密码
-    AuthProtocol    string `json:"auth_protocol"`  // 认证协议（SHA/AES）
-    PrivPassword    string `json:"priv_password"`  // 加密密码
-    PrivProtocol    string `json:"priv_protocol"`  // 加密协议
+    IP                     string `json:"ip" binding:"required,ip"`
+	SNMPVersion            string `json:"snmp_version" binding:"required,oneof=v2c v3"`
+	Community              string `json:"community,omitempty" binding:"required_if=SNMPVersion v2c"`
+	Username               string `json:"username,omitempty" binding:"required_if=SNMPVersion v3"`
+	AuthenticationProtocol string `json:"authentication_protocol,omitempty" binding:"required_if=SNMPVersion v3,oneof=MD5 SHA"`
+	AuthenticationPassword           string `json:"auth_password,omitempty" binding:"required_if=SNMPVersion v3"`
+	PrivacyProtocol        string `json:"privacy_protocol,omitempty" binding:"required_if=SNMPVersion v3,oneof=DES AES"`
+	PrivacyPassword        string `json:"privacy_password,omitempty" binding:"required_if=SNMPVersion v3"`
 }
 
 // 设备信息（数据库存储）

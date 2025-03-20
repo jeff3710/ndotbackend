@@ -6,15 +6,19 @@ import (
 	"time"
 
 	"github.com/gosnmp/gosnmp"
-	"github.com/jeff3710/ndot/config"
 	"github.com/jeff3710/ndot/internal/pkg/model"
+	"github.com/jeff3710/ndot/server"
 )
 
-type SNMPClient struct {
-	config *config.Config
+type SNMPClientInterface interface {
+	GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, error)
 }
 
-func NewSNMPClient(cfg *config.Config) *SNMPClient {
+type SNMPClient struct {
+	config *server.Config
+}
+
+func NewSNMPClient(cfg *server.Config) *SNMPClient {
 	return &SNMPClient{
 		config: cfg,
 	}
@@ -76,14 +80,14 @@ func ConvertPrivProtocol(proto string) (gosnmp.SnmpV3PrivProtocol, error) {
 	}
 }
 
-func detectVendor(descr string, sysObjectID string,vendorOIDs map[string]string) string {
-	if v := detectVendorFromOID(vendorOIDs,sysObjectID); v != "Unknown" {
+func detectVendor(descr string, sysObjectID string, vendorOIDs map[string]string) string {
+	if v := detectVendorFromOID(vendorOIDs, sysObjectID); v != "Unknown" {
 		return v
 	}
 	return detectVendorFromDescription(descr)
 }
 
-func detectVendorFromOID(vendorOIDs map[string]string,sysObjectID string) string {
+func detectVendorFromOID(vendorOIDs map[string]string, sysObjectID string) string {
 	for prefix, vendor := range vendorOIDs {
 		if strings.HasPrefix(sysObjectID, prefix) {
 			return vendor
@@ -113,7 +117,7 @@ func detectVendorFromDescription(descr string) string {
 		return "Juniper"
 	case strings.Contains(descr, "h3c") || strings.Contains(descr, "comware"):
 		return "H3C"
-    case strings.Contains(descr,"sangfor"):
+	case strings.Contains(descr, "sangfor"):
 		return "Sangfor"
 	case strings.Contains(descr, "fortinet"):
 		return "Fortinet"
@@ -128,26 +132,27 @@ func (c *SNMPClient) GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, e
 	if err != nil {
 		return nil, err
 	}
-	authProtocol, err := ConvertAuthProtocol(req.AuthProtocol)
+	authProtocol, err := ConvertAuthProtocol(req.AuthenticationProtocol)
 	if err != nil {
 		return nil, err
 	}
-	privProtocol, err := ConvertPrivProtocol(req.PrivProtocol)
+	privProtocol, err := ConvertPrivProtocol(req.PrivacyProtocol)
 	if err != nil {
 		return nil, err
 	}
 	snmp := &gosnmp.GoSNMP{
 		Target:        req.IP,
 		Port:          161,
+		Community:     req.Community,
 		Version:       version,
 		SecurityModel: gosnmp.UserSecurityModel,
 		MsgFlags:      gosnmp.AuthPriv,
 		SecurityParameters: &gosnmp.UsmSecurityParameters{
 			UserName:                 req.Username,
 			AuthenticationProtocol:   authProtocol,
-			AuthenticationPassphrase: req.AuthPassword,
+			AuthenticationPassphrase: req.AuthenticationPassword,
 			PrivacyProtocol:          privProtocol,
-			PrivacyPassphrase:        req.PrivPassword,
+			PrivacyPassphrase:        req.PrivacyPassword,
 		},
 		Timeout: 10 * time.Second,
 	}
@@ -169,31 +174,31 @@ func (c *SNMPClient) GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, e
 		return nil, fmt.Errorf("SNMP get failed: %v", err)
 	}
 
-    // vendorOIDs 厂商OID前缀映射表，从配置文件加载
-// 键为OID前缀，值为厂商名称
- vendorOIDs := c.config.Vendors // 从配置文件加载
+	// vendorOIDs 厂商OID前缀映射表，从配置文件加载
+	// 键为OID前缀，值为厂商名称
+	vendorOIDs := c.config.Vendors // 从配置文件加载
 
 	// 解析结果（需根据实际设备调整）
 	info := &model.DeviceInfo{IP: req.IP}
-    oidMap:= c.config.SystemOIDs
+	oidMap := c.config.SystemOIDs
 	for _, v := range result.Variables {
 		switch v.Name {
 		case oidMap["sysName"]:
 			info.Hostname = string(v.Value.([]byte))
 		case oidMap["sysDescr"]:
 			// 从描述中提取型号、厂商等信息（示例）
-            sysDescr := string(v.Value.([]byte))
+			sysDescr := string(v.Value.([]byte))
 			info.Vendor = detectVendor(sysDescr, v.Value.(string), vendorOIDs)
 			info.Model = extractModel(sysDescr)
-            case oidMap["sysObjectID"]:
+		case oidMap["sysObjectID"]:
 			sysObjectID := v.Value.(string)
 			if info.Vendor == "" {
-				info.Vendor = detectVendorFromOID(vendorOIDs,sysObjectID)
+				info.Vendor = detectVendorFromOID(vendorOIDs, sysObjectID)
 			}
-         
-            // case oidMap["serialNumber"]:
-            //     serialNumber:= string(v.Value.([]byte))
-            default:
+
+		// case oidMap["serialNumber"]:
+		//     serialNumber:= string(v.Value.([]byte))
+		default:
 			// 其他OID的处理
 		}
 	}
