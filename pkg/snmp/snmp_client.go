@@ -7,7 +7,8 @@ import (
 
 	"github.com/gosnmp/gosnmp"
 	"github.com/jeff3710/ndot/internal/pkg/model"
-	"github.com/jeff3710/ndot/server"
+	"github.com/jeff3710/ndot/pkg/config"
+	// "github.com/jeff3710/ndot/server"
 )
 
 type SNMPClientInterface interface {
@@ -15,10 +16,10 @@ type SNMPClientInterface interface {
 }
 
 type SNMPClient struct {
-	config *server.Config
+	config *config.Config
 }
 
-func NewSNMPClient(cfg *server.Config) *SNMPClient {
+func NewSNMPClient(cfg *config.Config) *SNMPClient {
 	return &SNMPClient{
 		config: cfg,
 	}

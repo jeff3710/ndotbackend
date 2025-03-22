@@ -7,15 +7,15 @@ import (
 	"github.com/jeff3710/ndot/internal/pkg/model"
 	"github.com/jeff3710/ndot/pkg/snmp"
 
-	"github.com/jeff3710/ndot/internal/ndot/repository"
+	"github.com/jeff3710/ndot/internal/apiserver/repository"
 )
 
 type DeviceService struct {
-	repo       *repository.DeviceRepository
+	repo       repository.DeviceRepositoryInterface
 	snmpClient snmp.SNMPClientInterface
 }
 
-func NewDeviceService(repo *repository.DeviceRepository, client snmp.SNMPClientInterface) *DeviceService {
+func NewDeviceService(repo repository.DeviceRepositoryInterface, client snmp.SNMPClientInterface) *DeviceService {
 	return &DeviceService{repo: repo, snmpClient: client}
 }
 

@@ -7,6 +7,13 @@ SET hostname = EXCLUDED.hostname,
     vendor = EXCLUDED.vendor,
     device_type = EXCLUDED.device_type;
 
+-- name: UpdateDeviceAll :exec
+UPDATE devices
+SET hostname = $1,
+    model = $2,
+    vendor = $3,
+    device_type = $4
+WHERE ip = $5;
 
 -- name: UpdateDeviceName :exec
 UPDATE devices
@@ -23,7 +30,7 @@ UPDATE devices
 SET ip = $1
 WHERE device_id = $2;
 
--- name: UpdateDeviceManufacturer :exec
+-- name: UpdateDeviceVendor :exec
 UPDATE devices
 SET vendor = $1
 WHERE device_id = $2;

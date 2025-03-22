@@ -1,9 +1,12 @@
-package server
+package config
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/viper"
 )
 
@@ -39,11 +42,12 @@ type Config struct {
 	SystemOIDs map[string]string `mapstructure:"system_oids"`
 }
 
+
+
 func LoadConfig() (*Config, error) {
 
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
-	viper.Debug()
 	viper.AddConfigPath(".")
 
 	// 支持环境变量覆盖配置
@@ -61,4 +65,40 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+
+func NewDatabasePool(dbConfig DatabaseConfig) (*pgxpool.Pool, error) {
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
+		dbConfig.User,
+		dbConfig.Password,
+		dbConfig.Host,
+		dbConfig.Port,
+		dbConfig.DBName,
+		dbConfig.SslMode,
+	)
+
+	poolConfig, err := pgxpool.ParseConfig(connStr)
+	if err != nil {
+		return nil, fmt.Errorf("解析数据库配置失败: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	poolConfig.MaxConns = int32(dbConfig.MaxOpenConns)
+	poolConfig.MinConns = int32(dbConfig.MaxIdleConns)
+	poolConfig.MaxConnLifetime = 90*time.Minute
+	poolConfig.HealthCheckPeriod = 1 * time.Minute
+	poolConfig.ConnConfig.ConnectTimeout= 5*time.Second
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("创建数据库连接池失败: %w", err)
+	}
+	err = pool.Ping(ctx)
+	if err!= nil {
+		return nil, fmt.Errorf("测试数据库连接失败: %w", err)
+	}
+
+	return pool, nil
 }

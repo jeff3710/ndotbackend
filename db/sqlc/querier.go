@@ -14,11 +14,12 @@ type Querier interface {
 	GetDeviceById(ctx context.Context, deviceID int32) (Device, error)
 	GetDeviceByIp(ctx context.Context, ip string) (Device, error)
 	ListDevices(ctx context.Context, arg ListDevicesParams) ([]Device, error)
+	UpdateDeviceAll(ctx context.Context, arg UpdateDeviceAllParams) error
 	UpdateDeviceIP(ctx context.Context, arg UpdateDeviceIPParams) error
-	UpdateDeviceManufacturer(ctx context.Context, arg UpdateDeviceManufacturerParams) error
 	UpdateDeviceModel(ctx context.Context, arg UpdateDeviceModelParams) error
 	UpdateDeviceName(ctx context.Context, arg UpdateDeviceNameParams) error
 	UpdateDeviceType(ctx context.Context, arg UpdateDeviceTypeParams) error
+	UpdateDeviceVendor(ctx context.Context, arg UpdateDeviceVendorParams) error
 }
 
 var _ Querier = (*Queries)(nil)

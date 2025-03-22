@@ -131,6 +131,34 @@ func (q *Queries) ListDevices(ctx context.Context, arg ListDevicesParams) ([]Dev
 	return items, nil
 }
 
+const updateDeviceAll = `-- name: UpdateDeviceAll :exec
+UPDATE devices
+SET hostname = $1,
+    model = $2,
+    vendor = $3,
+    device_type = $4
+WHERE ip = $5
+`
+
+type UpdateDeviceAllParams struct {
+	Hostname   string `json:"hostname"`
+	Model      string `json:"model"`
+	Vendor     string `json:"vendor"`
+	DeviceType string `json:"device_type"`
+	Ip         string `json:"ip"`
+}
+
+func (q *Queries) UpdateDeviceAll(ctx context.Context, arg UpdateDeviceAllParams) error {
+	_, err := q.db.Exec(ctx, updateDeviceAll,
+		arg.Hostname,
+		arg.Model,
+		arg.Vendor,
+		arg.DeviceType,
+		arg.Ip,
+	)
+	return err
+}
+
 const updateDeviceIP = `-- name: UpdateDeviceIP :exec
 UPDATE devices
 SET ip = $1
@@ -144,22 +172,6 @@ type UpdateDeviceIPParams struct {
 
 func (q *Queries) UpdateDeviceIP(ctx context.Context, arg UpdateDeviceIPParams) error {
 	_, err := q.db.Exec(ctx, updateDeviceIP, arg.Ip, arg.DeviceID)
-	return err
-}
-
-const updateDeviceManufacturer = `-- name: UpdateDeviceManufacturer :exec
-UPDATE devices
-SET vendor = $1
-WHERE device_id = $2
-`
-
-type UpdateDeviceManufacturerParams struct {
-	Vendor   string `json:"vendor"`
-	DeviceID int32  `json:"device_id"`
-}
-
-func (q *Queries) UpdateDeviceManufacturer(ctx context.Context, arg UpdateDeviceManufacturerParams) error {
-	_, err := q.db.Exec(ctx, updateDeviceManufacturer, arg.Vendor, arg.DeviceID)
 	return err
 }
 
@@ -208,5 +220,21 @@ type UpdateDeviceTypeParams struct {
 
 func (q *Queries) UpdateDeviceType(ctx context.Context, arg UpdateDeviceTypeParams) error {
 	_, err := q.db.Exec(ctx, updateDeviceType, arg.DeviceType, arg.DeviceID)
+	return err
+}
+
+const updateDeviceVendor = `-- name: UpdateDeviceVendor :exec
+UPDATE devices
+SET vendor = $1
+WHERE device_id = $2
+`
+
+type UpdateDeviceVendorParams struct {
+	Vendor   string `json:"vendor"`
+	DeviceID int32  `json:"device_id"`
+}
+
+func (q *Queries) UpdateDeviceVendor(ctx context.Context, arg UpdateDeviceVendorParams) error {
+	_, err := q.db.Exec(ctx, updateDeviceVendor, arg.Vendor, arg.DeviceID)
 	return err
 }

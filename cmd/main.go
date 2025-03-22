@@ -11,13 +11,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jeff3710/ndot/api/route"
+	db "github.com/jeff3710/ndot/db/sqlc"
+	"github.com/jeff3710/ndot/internal/apiserver"
+	"github.com/jeff3710/ndot/internal/apiserver/route"
 	"github.com/jeff3710/ndot/pkg/log"
-	"github.com/jeff3710/ndot/server"
 )
 
 func main() {
-	app := server.App()
+	app := apiserver.NewApiServer()
 	config := app.Config
 	options := &log.Options{
 		DisableCaller:     config.Log.DisableCaller,
@@ -28,18 +29,19 @@ func main() {
 	}
 
 	log.Init(options)
-	log.Infow("sugarlog config port", "端口", config.App.Port)
 	defer log.Sync()
 
-	pool := app.Pool
+	pool := app.DBPool
 	defer pool.Close()
 
+	store := db.NewStore(pool)
+
 	gin := gin.Default()
-	route.Setup(config, pool, gin)
+	route.Setup(config, store, gin)
 
 	addr := fmt.Sprintf(":%d", config.App.Port)
 
-	httpsrv := startInsecureServer(gin, addr)
+	httpsrv := startHttpServer(gin, addr)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
@@ -54,10 +56,10 @@ func main() {
 
 }
 
-func startInsecureServer(g *gin.Engine, addr string) *http.Server {
+func startHttpServer(g *gin.Engine, addr string) *http.Server {
 	httpsrv := &http.Server{Addr: addr, Handler: g}
 
-	log.Infow("start insecure server")
+	log.Infow("start http server")
 	go func() {
 		if err := httpsrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalw("http server listen: %s\n", err)
