@@ -32,6 +32,7 @@ coverage/
 *.dll
 *.so
 *.dylib
+.DS_Store
 
 # 缓存文件
 __pycache__/
