@@ -2,6 +2,7 @@ package snmp
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,16 +82,20 @@ func ConvertPrivProtocol(proto string) (gosnmp.SnmpV3PrivProtocol, error) {
 	}
 }
 
-func detectVendor(descr string, sysObjectID string, vendorOIDs map[string]string) string {
-	if v := detectVendorFromOID(vendorOIDs, sysObjectID); v != "Unknown" {
-		return v
-	}
-	return detectVendorFromDescription(descr)
-}
+// func detectVendor(descr string, sysObjectID string, vendorOIDs map[string]string) string {
+// 	if v := detectVendorFromOID(vendorOIDs, sysObjectID); v != "Unknown" {
+// 		return v
+// 	}
+// 	return detectVendorFromDescription(descr)
+// }
 
 func detectVendorFromOID(vendorOIDs map[string]string, sysObjectID string) string {
+	// 修复1：标准化OID格式比较
+	targetOID := strings.TrimPrefix(sysObjectID, ".")
 	for prefix, vendor := range vendorOIDs {
-		if strings.HasPrefix(sysObjectID, prefix) {
+		// 确保配置中的OID前缀格式统一
+		normalizedPrefix := strings.TrimPrefix(prefix, ".")
+		if strings.HasPrefix(targetOID, normalizedPrefix) {
 			return vendor
 		}
 	}
@@ -100,7 +105,8 @@ func detectVendorFromOID(vendorOIDs map[string]string, sysObjectID string) strin
 func extractModel(descr string) string {
 	// 典型sysDescr格式示例：
 	// "Cisco IOS Software, C3750E Software (C3750E-UNIVERSALK9-M), Version 15.0(2)SE11"
-	parts := strings.Split(descr, ",")
+	parts := strings.Split(descr, " ")
+	fmt.Println(parts)
 	if len(parts) >= 2 {
 		return strings.TrimSpace(parts[1])
 	}
@@ -141,6 +147,7 @@ func (c *SNMPClient) GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, e
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(version, authProtocol, privProtocol)
 	snmp := &gosnmp.GoSNMP{
 		Target:        req.IP,
 		Port:          161,
@@ -157,7 +164,6 @@ func (c *SNMPClient) GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, e
 		},
 		Timeout: 10 * time.Second,
 	}
-
 	// 连接设备
 	if err := snmp.Connect(); err != nil {
 		return nil, fmt.Errorf("SNMP connect failed: %v", err)
@@ -165,7 +171,10 @@ func (c *SNMPClient) GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, e
 	defer snmp.Conn.Close()
 
 	oids := make([]string, 0, len(c.config.SystemOIDs))
-	for oid := range c.config.SystemOIDs {
+	for _, oid := range c.config.SystemOIDs {
+		if !isValidOID(oid) {
+			return nil, fmt.Errorf("无效的OID: %s", oid)
+		}
 		oids = append(oids, oid)
 	}
 	fmt.Println(oids)
@@ -184,25 +193,44 @@ func (c *SNMPClient) GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, e
 	oidMap := c.config.SystemOIDs
 	for _, v := range result.Variables {
 		switch v.Name {
-		case oidMap["sysName"]:
-			info.Hostname = string(v.Value.([]byte))
-		case oidMap["sysDescr"]:
-			// 从描述中提取型号、厂商等信息（示例）
-			sysDescr := string(v.Value.([]byte))
-			info.Vendor = detectVendor(sysDescr, v.Value.(string), vendorOIDs)
-			info.Model = extractModel(sysDescr)
-		case oidMap["sysObjectID"]:
-			sysObjectID := v.Value.(string)
-			if info.Vendor == "" {
-				info.Vendor = detectVendorFromOID(vendorOIDs, sysObjectID)
+		case oidMap["sysname"]:
+			if bytes, ok := v.Value.([]byte); ok {
+				info.Hostname = string(bytes)
+			}
+		case oidMap["sysdescr"]:
+			if bytes, ok := v.Value.([]byte); ok {
+				sysDescr := string(bytes)
+				info.Model = extractModel(sysDescr)
+				if info.Vendor == "" {
+					info.Vendor = detectVendorFromDescription(sysDescr)
+				}
+			}
+		case oidMap["sysobjectid"]:
+			if value, ok := v.Value.(string); ok {
+				info.Vendor = detectVendorFromOID(vendorOIDs, value)
 			}
 
-		// case oidMap["serialNumber"]:
-		//     serialNumber:= string(v.Value.([]byte))
 		default:
-			// 其他OID的处理
+			fmt.Printf("未处理的OID: %s\n", v.Name)
 		}
 	}
-
+	if info.Vendor == "" {
+		info.Vendor = "Unknown"
+	}
+	fmt.Println(info)
 	return info, nil
+}
+
+func isValidOID(oid string) bool {
+	if oid == "" || oid[0] != '.' {
+		return false
+	}
+
+	parts := strings.Split(oid[1:], ".")
+	for _, part := range parts {
+		if _, err := strconv.Atoi(part); err != nil {
+			return false
+		}
+	}
+	return true
 }

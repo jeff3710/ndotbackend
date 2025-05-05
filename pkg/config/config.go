@@ -15,14 +15,14 @@ type AppConfig struct {
 }
 
 type DatabaseConfig struct {
-	User         string
-	Password     string
-	Host         string
-	Port         int
-	DBName       string
-	SslMode      string
-	MaxOpenConns int
-	MaxIdleConns int
+	User         string `mapstructure:"user"`
+	Password     string `mapstructure:"password"`
+	Host         string `mapstructure:"host"`
+	Port         int    `mapstructure:"port"`
+	DBName       string `mapstructure:"dbname"`
+	SslMode      string `mapstructure:"sslmode"`
+	MaxOpenConns int    `mapstructure:"max-open-conns"`
+	MaxIdleConns int    `mapstructure:"max-idle-conns"`
 }
 
 // LogConfig 定义日志配置结构体
@@ -33,6 +33,11 @@ type LogConfig struct {
 	Format            string   `mapstructure:"format"`
 	OutputPaths       []string `mapstructure:"output-paths"`
 }
+type JwtConfig struct {
+	SecretKey            string        `mapstructure:"secret"`
+	AccessTokenDuration  time.Duration `mapstructure:"access-token-duration"`
+	RefreshTokenDuration time.Duration `mapstructure:"refresh-token-duration"`
+}
 
 type Config struct {
 	App        AppConfig         `mapstructure:"app"`
@@ -40,9 +45,8 @@ type Config struct {
 	Log        LogConfig         `mapstructure:"log"`
 	Vendors    map[string]string `mapstructure:"vendors"`
 	SystemOIDs map[string]string `mapstructure:"system_oids"`
+	Jwt        JwtConfig         `mapstructure:"jwt"`
 }
-
-
 
 func LoadConfig() (*Config, error) {
 
@@ -67,7 +71,6 @@ func LoadConfig() (*Config, error) {
 	return &config, nil
 }
 
-
 func NewDatabasePool(dbConfig DatabaseConfig) (*pgxpool.Pool, error) {
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		dbConfig.User,
@@ -87,16 +90,16 @@ func NewDatabasePool(dbConfig DatabaseConfig) (*pgxpool.Pool, error) {
 
 	poolConfig.MaxConns = int32(dbConfig.MaxOpenConns)
 	poolConfig.MinConns = int32(dbConfig.MaxIdleConns)
-	poolConfig.MaxConnLifetime = 90*time.Minute
+	poolConfig.MaxConnLifetime = 90 * time.Minute
 	poolConfig.HealthCheckPeriod = 1 * time.Minute
-	poolConfig.ConnConfig.ConnectTimeout= 5*time.Second
+	poolConfig.ConnConfig.ConnectTimeout = 5 * time.Second
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("创建数据库连接池失败: %w", err)
 	}
 	err = pool.Ping(ctx)
-	if err!= nil {
+	if err != nil {
 		return nil, fmt.Errorf("测试数据库连接失败: %w", err)
 	}
 

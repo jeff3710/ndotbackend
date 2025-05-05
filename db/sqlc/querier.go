@@ -6,20 +6,38 @@ package db
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type Querier interface {
 	CreateDevice(ctx context.Context, arg CreateDeviceParams) error
+	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
+	CreateSnmpTemplateBase(ctx context.Context, arg CreateSnmpTemplateBaseParams) (int64, error)
+	CreateSnmpTemplateWithV2Parameters(ctx context.Context, arg CreateSnmpTemplateWithV2ParametersParams) error
+	CreateSnmpTemplateWithV3Parameters(ctx context.Context, arg CreateSnmpTemplateWithV3ParametersParams) error
+	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteDevice(ctx context.Context, deviceID int32) error
+	DeleteSnmpTemplateWithParameters(ctx context.Context, templateID int32) error
+	DeleteUser(ctx context.Context, username string) error
+	GetAllUsers(ctx context.Context) ([]User, error)
 	GetDeviceById(ctx context.Context, deviceID int32) (Device, error)
 	GetDeviceByIp(ctx context.Context, ip string) (Device, error)
+	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
+	GetSnmpTemplateWithParameters(ctx context.Context, id int64) (GetSnmpTemplateWithParametersRow, error)
+	GetUser(ctx context.Context, username string) (User, error)
+	GetUserById(ctx context.Context, id int64) (User, error)
 	ListDevices(ctx context.Context, arg ListDevicesParams) ([]Device, error)
+	ListSnmpTemplatesWithParameters(ctx context.Context, arg ListSnmpTemplatesWithParametersParams) ([]ListSnmpTemplatesWithParametersRow, error)
 	UpdateDeviceAll(ctx context.Context, arg UpdateDeviceAllParams) error
 	UpdateDeviceIP(ctx context.Context, arg UpdateDeviceIPParams) error
 	UpdateDeviceModel(ctx context.Context, arg UpdateDeviceModelParams) error
 	UpdateDeviceName(ctx context.Context, arg UpdateDeviceNameParams) error
 	UpdateDeviceType(ctx context.Context, arg UpdateDeviceTypeParams) error
 	UpdateDeviceVendor(ctx context.Context, arg UpdateDeviceVendorParams) error
+	UpdateSnmpTemplateWithParameters(ctx context.Context, arg UpdateSnmpTemplateWithParametersParams) error
+	UpdateSnmpTemplateWithV3Parameters(ctx context.Context, arg UpdateSnmpTemplateWithV3ParametersParams) error
+	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 }
 
 var _ Querier = (*Queries)(nil)

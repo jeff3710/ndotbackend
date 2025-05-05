@@ -4,19 +4,18 @@ package service
 import (
 	"context"
 
+	db "github.com/jeff3710/ndot/db/sqlc"
 	"github.com/jeff3710/ndot/internal/pkg/model"
 	"github.com/jeff3710/ndot/pkg/snmp"
-
-	"github.com/jeff3710/ndot/internal/apiserver/repository"
 )
 
 type DeviceService struct {
-	repo       repository.DeviceRepositoryInterface
+	db         db.Store
 	snmpClient snmp.SNMPClientInterface
 }
 
-func NewDeviceService(repo repository.DeviceRepositoryInterface, client snmp.SNMPClientInterface) *DeviceService {
-	return &DeviceService{repo: repo, snmpClient: client}
+func NewDeviceService(db db.Store, client snmp.SNMPClientInterface) DeviceServiceInterface {
+	return &DeviceService{db: db, snmpClient: client}
 }
 
 func (s *DeviceService) CollectAndSave(ctx context.Context, req *model.SNMPRequest) (*model.DeviceDTO, error) {
@@ -24,6 +23,14 @@ func (s *DeviceService) CollectAndSave(ctx context.Context, req *model.SNMPReque
 	info, err := s.snmpClient.GetDeviceInfo(req)
 	if err != nil {
 		return nil, err
+	}
+
+	arg := db.CreateDeviceParams{
+		Ip:         info.IP,
+		Hostname:   info.Hostname,
+		Model:      info.Model,
+		Vendor:     info.Vendor,
+		DeviceType: info.DeviceType,
 	}
 
 	// 转换为DTO
@@ -36,7 +43,7 @@ func (s *DeviceService) CollectAndSave(ctx context.Context, req *model.SNMPReque
 	}
 
 	// 存储到数据库
-	if err := s.repo.SaveDevice(ctx, dto); err != nil {
+	if err := s.db.CreateDevice(ctx, arg); err != nil {
 		return nil, err
 	}
 
@@ -44,9 +51,31 @@ func (s *DeviceService) CollectAndSave(ctx context.Context, req *model.SNMPReque
 }
 
 func (s *DeviceService) GetDeviceById(ctx context.Context, id int32) (*model.DeviceDTO, error) {
-	return s.repo.GetDeviceById(ctx, id)
+	device, err := s.db.GetDeviceById(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.DeviceDTO{
+		Ip:         device.Ip,
+		Hostname:   device.Hostname,
+		Model:      device.Model,
+		Vendor:     device.Vendor,
+		DeviceType: device.DeviceType,
+	}, nil
 }
 
 func (s *DeviceService) GetDeviceByIp(ctx context.Context, ip string) (*model.DeviceDTO, error) {
-	return s.repo.GetDeviceByIp(ctx, ip)
+
+	device, err := s.db.GetDeviceByIp(ctx, ip)
+	if err != nil {
+		return nil, err
+	}
+	return &model.DeviceDTO{
+		Ip:         device.Ip,
+		Hostname:   device.Hostname,
+		Model:      device.Model,
+		Vendor:     device.Vendor,
+		DeviceType: device.DeviceType,
+	}, nil
 }

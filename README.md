@@ -50,3 +50,10 @@ make migrate-up
 ```bash
 make debug
 ```
+
+4. 临时hash密码
+
+```
+$2a$10$zI7jOObqZzS0yY1ia7lJiO5QHBrPZJ8y7I.IQhva0wh5g9E7VDrRi
+```
+

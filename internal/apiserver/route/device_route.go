@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	db "github.com/jeff3710/ndot/db/sqlc"
 	"github.com/jeff3710/ndot/internal/apiserver/handler/device"
-	"github.com/jeff3710/ndot/internal/apiserver/repository"
 	"github.com/jeff3710/ndot/internal/apiserver/service"
 	"github.com/jeff3710/ndot/pkg/config"
 	"github.com/jeff3710/ndot/pkg/snmp"
@@ -20,8 +19,8 @@ func NewDeviceRouter(config *config.Config, db db.Store, group *gin.RouterGroup)
 	// 以避免结构体复制的性能开销
 
 	snmp := snmp.NewSNMPClient(config)
-	deviceRepo := repository.NewDeviceRepository(db)
-	deviceSvc := service.NewDeviceService(deviceRepo, snmp)
+	
+	deviceSvc := service.NewDeviceService(db, snmp)
 	deviceHandler := device.NewDeviceHandler(deviceSvc)
 
 	group.POST("/devicesadd", deviceHandler.CollectDevice)

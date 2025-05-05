@@ -1,6 +1,5 @@
 package errno
 
-
 var (
 	// OK 代表请求成功.
 	OK = &Errno{HTTP: 200, Code: "", Message: ""}
@@ -25,4 +24,16 @@ var (
 
 	// ErrUnauthorized 表示请求没有被授权.
 	ErrUnauthorized = &Errno{HTTP: 401, Code: "AuthFailure.Unauthorized", Message: "Unauthorized."}
+
+	// ErrUserAlreadyExist 代表用户已经存在.
+	ErrUserAlreadyExist = &Errno{HTTP: 400, Code: "FailedOperation.UserAlreadyExist", Message: "User already exist."}
+
+	// ErrUserNotFound 表示未找到用户.
+	ErrUserNotFound = &Errno{HTTP: 404, Code: "ResourceNotFound.UserNotFound", Message: "User was not found."}
+
+	// ErrPasswordIncorrect 表示密码不正确.
+	ErrPasswordIncorrect = &Errno{HTTP: 401, Code: "InvalidParameter.PasswordIncorrect", Message: "Password was incorrect."}
+
+	// ErrForbiddenDeleteAdmin 表示禁止删除管理员.
+	ErrForbiddenDeleteAdmin = &Errno{HTTP: 403, Code: "FailedOperation.ForbiddenDeleteAdmin", Message: "You can not delete the admin user."}
 )

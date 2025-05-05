@@ -9,12 +9,14 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jeff3710/ndot/pkg/config"
+	"github.com/jeff3710/ndot/pkg/token"
 	"github.com/spf13/viper"
 )
 
 type ApiServer struct {
-	Config *config.Config
-	DBPool *pgxpool.Pool
+	Config     *config.Config
+	DBPool     *pgxpool.Pool
+	TokenMaker token.Maker
 }
 
 func loadConfig() (*config.Config, error) {
@@ -75,20 +77,32 @@ func NewDatabasePool(dbConfig config.DatabaseConfig) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-func NewApiServer() *ApiServer {
+func NewApiServer() (*ApiServer, error) {
 
+	// 加载配置文件
 	config, err := loadConfig()
 	if err != nil {
 		panic(err)
 	}
+
+	// 初始化数据库连接池
 	pool, err := NewDatabasePool(config.Database)
 	if err != nil {
 		log.Fatal("数据库连接失败:", err)
 	}
-	app := &ApiServer{
-		Config: config,
-		DBPool: pool,
+
+	// 初始化token生成器
+	tokenMaker, err := token.NewJWTMaker(config.Jwt.SecretKey)
+	if err != nil {
+		log.Fatal("token生成失败:", err)
 	}
 
-	return app
+	// 初始化ApiServer
+	app := &ApiServer{
+		Config:     config,
+		DBPool:     pool,
+		TokenMaker: tokenMaker,
+	}
+
+	return app, nil
 }

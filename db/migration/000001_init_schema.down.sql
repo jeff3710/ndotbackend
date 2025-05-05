@@ -1,6 +1,6 @@
-DROP TABLE IF EXISTS "alarm_info";
-DROP TABLE IF EXISTS "topology_relationship";
-DROP TABLE IF EXISTS "user_permission";
-DROP TABLE IF EXISTS "device_status";
-DROP TABLE IF EXISTS "user_info";
-DROP TABLE IF EXISTS "devices";
+DROP TABLE IF EXISTS snmpv3_parameters;
+DROP TABLE IF EXISTS snmpv2_parameters;
+DROP TABLE IF EXISTS devices;
+DROP TABLE IF EXISTS snmp_template;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;

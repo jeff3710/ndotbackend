@@ -7,13 +7,17 @@ import (
 	"github.com/jeff3710/ndot/internal/pkg/errno"
 )
 
-
 type ErrResponse struct {
 	// Code 指定了业务错误码.
 	Code string `json:"code"`
 
 	// Message 包含了可以直接对外展示的错误信息.
 	Message string `json:"message"`
+}
+type JsonResp struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg,omitempty"`
+	Data any    `json:"data,omitempty"`
 }
 
 // WriteResponse 将错误或响应数据写入 HTTP 响应主体。
@@ -29,5 +33,9 @@ func WriteResponse(c *gin.Context, err error, data interface{}) {
 		return
 	}
 
-	c.JSON(http.StatusOK, data)
+	c.JSON(http.StatusOK, &JsonResp{
+		Code: 0,
+		Msg:  "success",
+		Data: data,
+	})
 }

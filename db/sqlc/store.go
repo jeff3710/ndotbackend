@@ -1,9 +1,14 @@
 package db
 
-import "github.com/jackc/pgx/v5/pgxpool"
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
 
 type Store interface{
 	Querier
+	CreateSNMPTempate(ctx context.Context, template SnmpTemplateUnion) error 
 
 }
 

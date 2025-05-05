@@ -12,7 +12,7 @@ DB_PORT := 5432
 MIGRATE_CMD := migrate
 MIGRATION_DIR := db/migration
 
-.PHONY: composeup composedown startdb stopdb createdb dropdb migrateup migratedown
+.PHONY: composeup composedown startdb stopdb createdb dropdb migrateup migratedown sqlc server
 
 composeup:
 	docker-compose -f $(DOCKER_COMPOSE_FILE) up -d
@@ -40,3 +40,6 @@ migratedown:
 
 sqlc:
 	sqlc generate
+
+server:
+	go run cmd/main.go
