@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	db "github.com/jeff3710/ndot/db/sqlc"
 	"github.com/jeff3710/ndot/internal/pkg/model"
@@ -82,11 +81,7 @@ func (s *DeviceService) GetDeviceByIp(ctx context.Context, ip string) (*model.De
 	}, nil
 }
 
-func (s *DeviceService) CreateSnmpTemplate(ctx context.Context, req v1.SnmpTemplateRequest) error {
-	userId, ok := ctx.Value("user_id").(int32)
-	if !ok {
-		return fmt.Errorf("user ID not found in context")
-	}
+func (s *DeviceService) CreateSnmpTemplate(ctx context.Context, req v1.SnmpTemplateRequest, userId int32) error {
 
 	r := db.SnmpTemplateUnion{
 		UserID:         userId,

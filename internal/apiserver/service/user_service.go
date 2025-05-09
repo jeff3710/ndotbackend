@@ -106,6 +106,8 @@ func (s *UserService) Login(ctx *gin.Context, username, password string) (*Login
 		return nil, errno.InternalServerError
 	}
 
+	log.Infow("user login", "id",refreshPayload.ID,"username", user.Username, "user_agent", ctx.Request.UserAgent(), "client_ip", ctx.ClientIP())
+
 	session, err := s.db.CreateSession(ctx, db.CreateSessionParams{
 		ID:           refreshPayload.ID,
 		Username:     user.Username,
@@ -116,7 +118,9 @@ func (s *UserService) Login(ctx *gin.Context, username, password string) (*Login
 		ExpiresAt:    refreshPayload.ExpiredAt,
 	})
 	if err != nil {
+		log.Errorw("failed to create session", "err", err.Error())
 		core.WriteResponse(ctx, errno.InternalServerError, nil)
+		return nil, errno.InternalServerError
 	}
 	resp := LoginUserResponse{
 		SessionID:             session.ID,

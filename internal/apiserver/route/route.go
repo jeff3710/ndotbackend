@@ -17,7 +17,7 @@ func Setup(config *config.Config, db db.Store, token token.Maker, g *gin.Engine)
 		core.WriteResponse(c, nil, map[string]string{"status": "ok"})
 	})
 	publicRouter := g.Group("/v1/device")
-	NewDeviceRouter(config, db, publicRouter)
+	NewDeviceRouter(config, db, token,publicRouter)
 	userRouter := g.Group("/v1/user")
 	NewUserRouter(config, db, token, userRouter)
 }

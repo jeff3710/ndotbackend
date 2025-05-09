@@ -1,9 +1,8 @@
 package v1
 
-
 type SnmpTemplateRequest struct {
 	Name        string `json:"name" binding:"required"`
-	Protocol    string `json:"protocol" default:"snmp"`
+	Protocol    string `json:"protocol"`
 	Version     string `json:"version" binding:"required"`
 	Description string `json:"description"`
 	DeviceCount int32  `json:"device_count"`

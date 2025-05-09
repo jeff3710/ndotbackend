@@ -30,10 +30,14 @@ var (
 
 	// ErrUserNotFound 表示未找到用户.
 	ErrUserNotFound = &Errno{HTTP: 404, Code: "ResourceNotFound.UserNotFound", Message: "User was not found."}
+	// ErrUserIdNotFound 表示未从上下文中找到用户ID.
+	ErrUserIdNotFound = &Errno{HTTP: 404, Code: "ResourceNotFound.UserIdNotFound", Message: "User id was not found."}
 
 	// ErrPasswordIncorrect 表示密码不正确.
 	ErrPasswordIncorrect = &Errno{HTTP: 401, Code: "InvalidParameter.PasswordIncorrect", Message: "Password was incorrect."}
 
 	// ErrForbiddenDeleteAdmin 表示禁止删除管理员.
 	ErrForbiddenDeleteAdmin = &Errno{HTTP: 403, Code: "FailedOperation.ForbiddenDeleteAdmin", Message: "You can not delete the admin user."}
+
+	ErrUserTypeAssertionFailed = &Errno{HTTP: 500, Code: "InternalError.UserTypeAssertionFailed", Message: "Failed to assert user type."}
 )

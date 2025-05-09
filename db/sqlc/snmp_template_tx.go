@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/jeff3710/ndot/pkg/log"
 )
 
 // 定义版本常量
@@ -88,15 +90,18 @@ func createV3Params(baseID int32, template SnmpTemplateUnion) CreateSnmpV3Templa
 // 先插入一条base记录，获取到id,然后根据version字段来插入v2c或v3记录，并关联到base记录
 func (store *SQLStore) CreateSNMPTempate(ctx context.Context, template SnmpTemplateUnion) error {
 	req := createBaseParams(template)
+	log.Infow("create snmp template base", "req", req)
 	return store.execTx(ctx, func(q *Queries) error {
 		baseID, err := q.CreateSnmpTemplateBase(ctx, req)
+		log.Infow("create snmp template base", "baseID", baseID)
 		if err != nil {
 			return fmt.Errorf("failed to create base template: %w", err)
 		}
-
+		log.Infow("snmp version is ", template.Version)
 		switch template.Version {
 		case SNMPv2c:
 			reqv2 := createV2Params(baseID, template)
+			log.Infow("create snmp template v2", "reqv2", reqv2)
 			return q.CreateSnmpV2Template(ctx, reqv2)
 		case SNMPv3:
 			reqv3 := createV3Params(baseID, template)
