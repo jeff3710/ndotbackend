@@ -7,15 +7,12 @@ package db
 
 import (
 	"context"
-	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createSnmpTemplateBase = `-- name: CreateSnmpTemplateBase :one
 INSERT INTO snmp_template (
   name, user_id, protocol, version, device_count, description
-)VALUES($1, $2, $3, $4, $5, $6)
+) VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id
 `
 
@@ -28,7 +25,9 @@ type CreateSnmpTemplateBaseParams struct {
 	Description string `json:"description"`
 }
 
-func (q *Queries) CreateSnmpTemplateBase(ctx context.Context, arg CreateSnmpTemplateBaseParams) (int64, error) {
+// CreateSnmpTemplateBase creates a new SNMP template base record
+// and returns the newly created template ID
+func (q *Queries) CreateSnmpTemplateBase(ctx context.Context, arg CreateSnmpTemplateBaseParams) (int32, error) {
 	row := q.db.QueryRow(ctx, createSnmpTemplateBase,
 		arg.Name,
 		arg.UserID,
@@ -37,32 +36,34 @@ func (q *Queries) CreateSnmpTemplateBase(ctx context.Context, arg CreateSnmpTemp
 		arg.DeviceCount,
 		arg.Description,
 	)
-	var id int64
+	var id int32
 	err := row.Scan(&id)
 	return id, err
 }
 
-const createSnmpTemplateWithV2Parameters = `-- name: CreateSnmpTemplateWithV2Parameters :exec
+const createSnmpV2Template = `-- name: CreateSnmpV2Template :exec
 INSERT INTO snmpv2_parameters (
-  template_id, port, read_community, write_community, trap_community, timeout, poll_interval, retries
+  template_id, port, read_community, write_community, trap_community, 
+  timeout, poll_interval, retries
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8
 )
 `
 
-type CreateSnmpTemplateWithV2ParametersParams struct {
+type CreateSnmpV2TemplateParams struct {
 	TemplateID     int32  `json:"template_id"`
-	Port           string `json:"port"`
+	Port           int32  `json:"port"`
 	ReadCommunity  string `json:"read_community"`
 	WriteCommunity string `json:"write_community"`
 	TrapCommunity  string `json:"trap_community"`
-	Timeout        string `json:"timeout"`
-	PollInterval   string `json:"poll_interval"`
-	Retries        string `json:"retries"`
+	Timeout        int32  `json:"timeout"`
+	PollInterval   int32  `json:"poll_interval"`
+	Retries        int32  `json:"retries"`
 }
 
-func (q *Queries) CreateSnmpTemplateWithV2Parameters(ctx context.Context, arg CreateSnmpTemplateWithV2ParametersParams) error {
-	_, err := q.db.Exec(ctx, createSnmpTemplateWithV2Parameters,
+// CreateSnmpV2Template creates SNMP v2c specific parameters
+func (q *Queries) CreateSnmpV2Template(ctx context.Context, arg CreateSnmpV2TemplateParams) error {
+	_, err := q.db.Exec(ctx, createSnmpV2Template,
 		arg.TemplateID,
 		arg.Port,
 		arg.ReadCommunity,
@@ -75,17 +76,19 @@ func (q *Queries) CreateSnmpTemplateWithV2Parameters(ctx context.Context, arg Cr
 	return err
 }
 
-const createSnmpTemplateWithV3Parameters = `-- name: CreateSnmpTemplateWithV3Parameters :exec
+const createSnmpV3Template = `-- name: CreateSnmpV3Template :exec
 INSERT INTO snmpv3_parameters (
-  template_id, port, security_level, auth_protocol, auth_password, priv_protocol, priv_password, v3_user, engine_id, timeout, poll_interval, retries
+  template_id, port, security_level, auth_protocol, auth_password, 
+  priv_protocol, priv_password, v3_user, engine_id, 
+  timeout, poll_interval, retries
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
 `
 
-type CreateSnmpTemplateWithV3ParametersParams struct {
+type CreateSnmpV3TemplateParams struct {
 	TemplateID    int32  `json:"template_id"`
-	Port          string `json:"port"`
+	Port          int32  `json:"port"`
 	SecurityLevel string `json:"security_level"`
 	AuthProtocol  string `json:"auth_protocol"`
 	AuthPassword  string `json:"auth_password"`
@@ -93,13 +96,14 @@ type CreateSnmpTemplateWithV3ParametersParams struct {
 	PrivPassword  string `json:"priv_password"`
 	V3User        string `json:"v3_user"`
 	EngineID      string `json:"engine_id"`
-	Timeout       string `json:"timeout"`
-	PollInterval  string `json:"poll_interval"`
-	Retries       string `json:"retries"`
+	Timeout       int32  `json:"timeout"`
+	PollInterval  int32  `json:"poll_interval"`
+	Retries       int32  `json:"retries"`
 }
 
-func (q *Queries) CreateSnmpTemplateWithV3Parameters(ctx context.Context, arg CreateSnmpTemplateWithV3ParametersParams) error {
-	_, err := q.db.Exec(ctx, createSnmpTemplateWithV3Parameters,
+// CreateSnmpV3Template creates SNMP v3 specific parameters
+func (q *Queries) CreateSnmpV3Template(ctx context.Context, arg CreateSnmpV3TemplateParams) error {
+	_, err := q.db.Exec(ctx, createSnmpV3Template,
 		arg.TemplateID,
 		arg.Port,
 		arg.SecurityLevel,
@@ -116,64 +120,48 @@ func (q *Queries) CreateSnmpTemplateWithV3Parameters(ctx context.Context, arg Cr
 	return err
 }
 
-const deleteSnmpTemplateWithParameters = `-- name: DeleteSnmpTemplateWithParameters :exec
+const deleteSnmpTemplateBase = `-- name: DeleteSnmpTemplateBase :exec
+DELETE FROM snmp_template
+WHERE id = $1
+`
+
+func (q *Queries) DeleteSnmpTemplateBase(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deleteSnmpTemplateBase, id)
+	return err
+}
+
+const deleteSnmpV2Parameters = `-- name: DeleteSnmpV2Parameters :exec
 DELETE FROM snmpv2_parameters
 WHERE template_id = $1
 `
 
-func (q *Queries) DeleteSnmpTemplateWithParameters(ctx context.Context, templateID int32) error {
-	_, err := q.db.Exec(ctx, deleteSnmpTemplateWithParameters, templateID)
+func (q *Queries) DeleteSnmpV2Parameters(ctx context.Context, templateID int32) error {
+	_, err := q.db.Exec(ctx, deleteSnmpV2Parameters, templateID)
 	return err
 }
 
-const getSnmpTemplateWithParameters = `-- name: GetSnmpTemplateWithParameters :one
-SELECT 
-  t.id, t.name, t.user_id, t.protocol, t.version, t.description, t.device_count, t.created_at, t.updated_at,
-  v2.id, v2.template_id, v2.port, v2.read_community, v2.write_community, v2.trap_community, v2.timeout, v2.poll_interval, v2.retries,
-  v3.id, v3.template_id, v3.port, v3.security_level, v3.auth_protocol, v3.auth_password, v3.priv_protocol, v3.priv_password, v3.v3_user, v3.engine_id, v3.timeout, v3.poll_interval, v3.retries
-FROM snmp_template t
-LEFT JOIN snmpv2_parameters v2 ON v2.template_id = t.id
-LEFT JOIN snmpv3_parameters v3 ON v3.template_id = t.id
-WHERE t.id = $1
+const deleteSnmpV3Parameters = `-- name: DeleteSnmpV3Parameters :exec
+DELETE FROM snmpv3_parameters
+WHERE template_id = $1
 `
 
-type GetSnmpTemplateWithParametersRow struct {
-	ID             int64       `json:"id"`
-	Name           string      `json:"name"`
-	UserID         int32       `json:"user_id"`
-	Protocol       string      `json:"protocol"`
-	Version        string      `json:"version"`
-	Description    string      `json:"description"`
-	DeviceCount    int32       `json:"device_count"`
-	CreatedAt      time.Time   `json:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at"`
-	ID_2           pgtype.Int4 `json:"id_2"`
-	TemplateID     pgtype.Int4 `json:"template_id"`
-	Port           pgtype.Text `json:"port"`
-	ReadCommunity  pgtype.Text `json:"read_community"`
-	WriteCommunity pgtype.Text `json:"write_community"`
-	TrapCommunity  pgtype.Text `json:"trap_community"`
-	Timeout        pgtype.Text `json:"timeout"`
-	PollInterval   pgtype.Text `json:"poll_interval"`
-	Retries        pgtype.Text `json:"retries"`
-	ID_3           pgtype.Int4 `json:"id_3"`
-	TemplateID_2   pgtype.Int4 `json:"template_id_2"`
-	Port_2         pgtype.Text `json:"port_2"`
-	SecurityLevel  pgtype.Text `json:"security_level"`
-	AuthProtocol   pgtype.Text `json:"auth_protocol"`
-	AuthPassword   pgtype.Text `json:"auth_password"`
-	PrivProtocol   pgtype.Text `json:"priv_protocol"`
-	PrivPassword   pgtype.Text `json:"priv_password"`
-	V3User         pgtype.Text `json:"v3_user"`
-	EngineID       pgtype.Text `json:"engine_id"`
-	Timeout_2      pgtype.Text `json:"timeout_2"`
-	PollInterval_2 pgtype.Text `json:"poll_interval_2"`
-	Retries_2      pgtype.Text `json:"retries_2"`
+func (q *Queries) DeleteSnmpV3Parameters(ctx context.Context, templateID int32) error {
+	_, err := q.db.Exec(ctx, deleteSnmpV3Parameters, templateID)
+	return err
 }
 
-func (q *Queries) GetSnmpTemplateWithParameters(ctx context.Context, id int64) (GetSnmpTemplateWithParametersRow, error) {
-	row := q.db.QueryRow(ctx, getSnmpTemplateWithParameters, id)
-	var i GetSnmpTemplateWithParametersRow
+const getSnmpTemplateBase = `-- name: GetSnmpTemplateBase :one
+SELECT 
+  id, name, user_id, protocol, version, description,
+  device_count, created_at, updated_at
+FROM snmp_template
+WHERE id = $1
+`
+
+// GetSnmpTemplateBase retrieves base SNMP template information
+func (q *Queries) GetSnmpTemplateBase(ctx context.Context, id int32) (SnmpTemplate, error) {
+	row := q.db.QueryRow(ctx, getSnmpTemplateBase, id)
+	var i SnmpTemplate
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -184,8 +172,35 @@ func (q *Queries) GetSnmpTemplateWithParameters(ctx context.Context, id int64) (
 		&i.DeviceCount,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.ID_2,
-		&i.TemplateID,
+	)
+	return i, err
+}
+
+const getSnmpV2Parameters = `-- name: GetSnmpV2Parameters :one
+SELECT 
+  id, port, read_community, write_community, trap_community,
+  timeout, poll_interval, retries
+FROM snmpv2_parameters
+WHERE template_id = $1
+`
+
+type GetSnmpV2ParametersRow struct {
+	ID             int32  `json:"id"`
+	Port           int32  `json:"port"`
+	ReadCommunity  string `json:"read_community"`
+	WriteCommunity string `json:"write_community"`
+	TrapCommunity  string `json:"trap_community"`
+	Timeout        int32  `json:"timeout"`
+	PollInterval   int32  `json:"poll_interval"`
+	Retries        int32  `json:"retries"`
+}
+
+// GetSnmpV2Parameters retrieves SNMP v2c specific parameters
+func (q *Queries) GetSnmpV2Parameters(ctx context.Context, templateID int32) (GetSnmpV2ParametersRow, error) {
+	row := q.db.QueryRow(ctx, getSnmpV2Parameters, templateID)
+	var i GetSnmpV2ParametersRow
+	err := row.Scan(
+		&i.ID,
 		&i.Port,
 		&i.ReadCommunity,
 		&i.WriteCommunity,
@@ -193,9 +208,41 @@ func (q *Queries) GetSnmpTemplateWithParameters(ctx context.Context, id int64) (
 		&i.Timeout,
 		&i.PollInterval,
 		&i.Retries,
-		&i.ID_3,
-		&i.TemplateID_2,
-		&i.Port_2,
+	)
+	return i, err
+}
+
+const getSnmpV3Parameters = `-- name: GetSnmpV3Parameters :one
+SELECT 
+  id, port, security_level, auth_protocol, auth_password,
+  priv_protocol, priv_password, v3_user, engine_id,
+  timeout, poll_interval, retries
+FROM snmpv3_parameters
+WHERE template_id = $1
+`
+
+type GetSnmpV3ParametersRow struct {
+	ID            int32  `json:"id"`
+	Port          int32  `json:"port"`
+	SecurityLevel string `json:"security_level"`
+	AuthProtocol  string `json:"auth_protocol"`
+	AuthPassword  string `json:"auth_password"`
+	PrivProtocol  string `json:"priv_protocol"`
+	PrivPassword  string `json:"priv_password"`
+	V3User        string `json:"v3_user"`
+	EngineID      string `json:"engine_id"`
+	Timeout       int32  `json:"timeout"`
+	PollInterval  int32  `json:"poll_interval"`
+	Retries       int32  `json:"retries"`
+}
+
+// GetSnmpV3Parameters retrieves SNMP v3 specific parameters
+func (q *Queries) GetSnmpV3Parameters(ctx context.Context, templateID int32) (GetSnmpV3ParametersRow, error) {
+	row := q.db.QueryRow(ctx, getSnmpV3Parameters, templateID)
+	var i GetSnmpV3ParametersRow
+	err := row.Scan(
+		&i.ID,
+		&i.Port,
 		&i.SecurityLevel,
 		&i.AuthProtocol,
 		&i.AuthPassword,
@@ -203,74 +250,38 @@ func (q *Queries) GetSnmpTemplateWithParameters(ctx context.Context, id int64) (
 		&i.PrivPassword,
 		&i.V3User,
 		&i.EngineID,
-		&i.Timeout_2,
-		&i.PollInterval_2,
-		&i.Retries_2,
+		&i.Timeout,
+		&i.PollInterval,
+		&i.Retries,
 	)
 	return i, err
 }
 
-const listSnmpTemplatesWithParameters = `-- name: ListSnmpTemplatesWithParameters :many
+const listSnmpTemplatesBase = `-- name: ListSnmpTemplatesBase :many
 SELECT 
-  t.id, t.name, t.user_id, t.protocol, t.version, t.description, t.device_count, t.created_at, t.updated_at,
-  v2.id, v2.template_id, v2.port, v2.read_community, v2.write_community, v2.trap_community, v2.timeout, v2.poll_interval, v2.retries,
-  v3.id, v3.template_id, v3.port, v3.security_level, v3.auth_protocol, v3.auth_password, v3.priv_protocol, v3.priv_password, v3.v3_user, v3.engine_id, v3.timeout, v3.poll_interval, v3.retries
-FROM snmp_template t
-LEFT JOIN snmpv2_parameters v2 ON v2.template_id = t.id
-LEFT JOIN snmpv3_parameters v3 ON v3.template_id = t.id
-ORDER BY t.id
+  id, name, user_id, protocol, version, description,
+  device_count, created_at, updated_at
+FROM snmp_template
+ORDER BY id
 LIMIT $1
 OFFSET $2
 `
 
-type ListSnmpTemplatesWithParametersParams struct {
+type ListSnmpTemplatesBaseParams struct {
 	Limit  int32 `json:"limit"`
 	Offset int32 `json:"offset"`
 }
 
-type ListSnmpTemplatesWithParametersRow struct {
-	ID             int64       `json:"id"`
-	Name           string      `json:"name"`
-	UserID         int32       `json:"user_id"`
-	Protocol       string      `json:"protocol"`
-	Version        string      `json:"version"`
-	Description    string      `json:"description"`
-	DeviceCount    int32       `json:"device_count"`
-	CreatedAt      time.Time   `json:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at"`
-	ID_2           pgtype.Int4 `json:"id_2"`
-	TemplateID     pgtype.Int4 `json:"template_id"`
-	Port           pgtype.Text `json:"port"`
-	ReadCommunity  pgtype.Text `json:"read_community"`
-	WriteCommunity pgtype.Text `json:"write_community"`
-	TrapCommunity  pgtype.Text `json:"trap_community"`
-	Timeout        pgtype.Text `json:"timeout"`
-	PollInterval   pgtype.Text `json:"poll_interval"`
-	Retries        pgtype.Text `json:"retries"`
-	ID_3           pgtype.Int4 `json:"id_3"`
-	TemplateID_2   pgtype.Int4 `json:"template_id_2"`
-	Port_2         pgtype.Text `json:"port_2"`
-	SecurityLevel  pgtype.Text `json:"security_level"`
-	AuthProtocol   pgtype.Text `json:"auth_protocol"`
-	AuthPassword   pgtype.Text `json:"auth_password"`
-	PrivProtocol   pgtype.Text `json:"priv_protocol"`
-	PrivPassword   pgtype.Text `json:"priv_password"`
-	V3User         pgtype.Text `json:"v3_user"`
-	EngineID       pgtype.Text `json:"engine_id"`
-	Timeout_2      pgtype.Text `json:"timeout_2"`
-	PollInterval_2 pgtype.Text `json:"poll_interval_2"`
-	Retries_2      pgtype.Text `json:"retries_2"`
-}
-
-func (q *Queries) ListSnmpTemplatesWithParameters(ctx context.Context, arg ListSnmpTemplatesWithParametersParams) ([]ListSnmpTemplatesWithParametersRow, error) {
-	rows, err := q.db.Query(ctx, listSnmpTemplatesWithParameters, arg.Limit, arg.Offset)
+// ListSnmpTemplatesBase retrieves paginated list of base SNMP template information
+func (q *Queries) ListSnmpTemplatesBase(ctx context.Context, arg ListSnmpTemplatesBaseParams) ([]SnmpTemplate, error) {
+	rows, err := q.db.Query(ctx, listSnmpTemplatesBase, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListSnmpTemplatesWithParametersRow{}
+	items := []SnmpTemplate{}
 	for rows.Next() {
-		var i ListSnmpTemplatesWithParametersRow
+		var i SnmpTemplate
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -281,28 +292,6 @@ func (q *Queries) ListSnmpTemplatesWithParameters(ctx context.Context, arg ListS
 			&i.DeviceCount,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.ID_2,
-			&i.TemplateID,
-			&i.Port,
-			&i.ReadCommunity,
-			&i.WriteCommunity,
-			&i.TrapCommunity,
-			&i.Timeout,
-			&i.PollInterval,
-			&i.Retries,
-			&i.ID_3,
-			&i.TemplateID_2,
-			&i.Port_2,
-			&i.SecurityLevel,
-			&i.AuthProtocol,
-			&i.AuthPassword,
-			&i.PrivProtocol,
-			&i.PrivPassword,
-			&i.V3User,
-			&i.EngineID,
-			&i.Timeout_2,
-			&i.PollInterval_2,
-			&i.Retries_2,
 		); err != nil {
 			return nil, err
 		}
@@ -314,7 +303,118 @@ func (q *Queries) ListSnmpTemplatesWithParameters(ctx context.Context, arg ListS
 	return items, nil
 }
 
-const updateSnmpTemplateWithParameters = `-- name: UpdateSnmpTemplateWithParameters :exec
+const listSnmpV2Parameters = `-- name: ListSnmpV2Parameters :many
+SELECT 
+  template_id, id, port, read_community, write_community, trap_community,
+  timeout, poll_interval, retries
+FROM snmpv2_parameters
+WHERE template_id = ANY($1::int[])
+`
+
+type ListSnmpV2ParametersRow struct {
+	TemplateID     int32  `json:"template_id"`
+	ID             int32  `json:"id"`
+	Port           int32  `json:"port"`
+	ReadCommunity  string `json:"read_community"`
+	WriteCommunity string `json:"write_community"`
+	TrapCommunity  string `json:"trap_community"`
+	Timeout        int32  `json:"timeout"`
+	PollInterval   int32  `json:"poll_interval"`
+	Retries        int32  `json:"retries"`
+}
+
+// ListSnmpV2Parameters retrieves SNMP v2c parameters for multiple templates
+func (q *Queries) ListSnmpV2Parameters(ctx context.Context, dollar_1 []int32) ([]ListSnmpV2ParametersRow, error) {
+	rows, err := q.db.Query(ctx, listSnmpV2Parameters, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSnmpV2ParametersRow{}
+	for rows.Next() {
+		var i ListSnmpV2ParametersRow
+		if err := rows.Scan(
+			&i.TemplateID,
+			&i.ID,
+			&i.Port,
+			&i.ReadCommunity,
+			&i.WriteCommunity,
+			&i.TrapCommunity,
+			&i.Timeout,
+			&i.PollInterval,
+			&i.Retries,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSnmpV3Parameters = `-- name: ListSnmpV3Parameters :many
+SELECT 
+  template_id, id, port, security_level, auth_protocol, auth_password,
+  priv_protocol, priv_password, v3_user, engine_id,
+  timeout, poll_interval, retries
+FROM snmpv3_parameters
+WHERE template_id = ANY($1::int[])
+`
+
+type ListSnmpV3ParametersRow struct {
+	TemplateID    int32  `json:"template_id"`
+	ID            int32  `json:"id"`
+	Port          int32  `json:"port"`
+	SecurityLevel string `json:"security_level"`
+	AuthProtocol  string `json:"auth_protocol"`
+	AuthPassword  string `json:"auth_password"`
+	PrivProtocol  string `json:"priv_protocol"`
+	PrivPassword  string `json:"priv_password"`
+	V3User        string `json:"v3_user"`
+	EngineID      string `json:"engine_id"`
+	Timeout       int32  `json:"timeout"`
+	PollInterval  int32  `json:"poll_interval"`
+	Retries       int32  `json:"retries"`
+}
+
+// ListSnmpV3Parameters retrieves SNMP v3 parameters for multiple templates
+func (q *Queries) ListSnmpV3Parameters(ctx context.Context, dollar_1 []int32) ([]ListSnmpV3ParametersRow, error) {
+	rows, err := q.db.Query(ctx, listSnmpV3Parameters, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSnmpV3ParametersRow{}
+	for rows.Next() {
+		var i ListSnmpV3ParametersRow
+		if err := rows.Scan(
+			&i.TemplateID,
+			&i.ID,
+			&i.Port,
+			&i.SecurityLevel,
+			&i.AuthProtocol,
+			&i.AuthPassword,
+			&i.PrivProtocol,
+			&i.PrivPassword,
+			&i.V3User,
+			&i.EngineID,
+			&i.Timeout,
+			&i.PollInterval,
+			&i.Retries,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateSnmpTemplateBase = `-- name: UpdateSnmpTemplateBase :exec
 UPDATE snmp_template
 SET name = $1,
     protocol = $2,
@@ -324,16 +424,16 @@ SET name = $1,
 WHERE id = $5
 `
 
-type UpdateSnmpTemplateWithParametersParams struct {
+type UpdateSnmpTemplateBaseParams struct {
 	Name        string `json:"name"`
 	Protocol    string `json:"protocol"`
 	Version     string `json:"version"`
 	Description string `json:"description"`
-	ID          int64  `json:"id"`
+	ID          int32  `json:"id"`
 }
 
-func (q *Queries) UpdateSnmpTemplateWithParameters(ctx context.Context, arg UpdateSnmpTemplateWithParametersParams) error {
-	_, err := q.db.Exec(ctx, updateSnmpTemplateWithParameters,
+func (q *Queries) UpdateSnmpTemplateBase(ctx context.Context, arg UpdateSnmpTemplateBaseParams) error {
+	_, err := q.db.Exec(ctx, updateSnmpTemplateBase,
 		arg.Name,
 		arg.Protocol,
 		arg.Version,
@@ -343,31 +443,88 @@ func (q *Queries) UpdateSnmpTemplateWithParameters(ctx context.Context, arg Upda
 	return err
 }
 
-const updateSnmpTemplateWithV3Parameters = `-- name: UpdateSnmpTemplateWithV3Parameters :exec
-UPDATE snmp_template
-SET name = $1,
-    protocol = $2,
-    version = $3,
-    description = $4,
-    updated_at = now()
-WHERE id = $5
+const updateSnmpV2Parameters = `-- name: UpdateSnmpV2Parameters :exec
+UPDATE snmpv2_parameters
+SET port = $1,
+    read_community = $2,
+    write_community = $3,
+    trap_community = $4,
+    timeout = $5,
+    poll_interval = $6,
+    retries = $7
+WHERE template_id = $8
 `
 
-type UpdateSnmpTemplateWithV3ParametersParams struct {
-	Name        string `json:"name"`
-	Protocol    string `json:"protocol"`
-	Version     string `json:"version"`
-	Description string `json:"description"`
-	ID          int64  `json:"id"`
+type UpdateSnmpV2ParametersParams struct {
+	Port           int32  `json:"port"`
+	ReadCommunity  string `json:"read_community"`
+	WriteCommunity string `json:"write_community"`
+	TrapCommunity  string `json:"trap_community"`
+	Timeout        int32  `json:"timeout"`
+	PollInterval   int32  `json:"poll_interval"`
+	Retries        int32  `json:"retries"`
+	TemplateID     int32  `json:"template_id"`
 }
 
-func (q *Queries) UpdateSnmpTemplateWithV3Parameters(ctx context.Context, arg UpdateSnmpTemplateWithV3ParametersParams) error {
-	_, err := q.db.Exec(ctx, updateSnmpTemplateWithV3Parameters,
-		arg.Name,
-		arg.Protocol,
-		arg.Version,
-		arg.Description,
-		arg.ID,
+func (q *Queries) UpdateSnmpV2Parameters(ctx context.Context, arg UpdateSnmpV2ParametersParams) error {
+	_, err := q.db.Exec(ctx, updateSnmpV2Parameters,
+		arg.Port,
+		arg.ReadCommunity,
+		arg.WriteCommunity,
+		arg.TrapCommunity,
+		arg.Timeout,
+		arg.PollInterval,
+		arg.Retries,
+		arg.TemplateID,
+	)
+	return err
+}
+
+const updateSnmpV3Parameters = `-- name: UpdateSnmpV3Parameters :exec
+UPDATE snmpv3_parameters
+SET port = $1,
+    security_level = $2,
+    auth_protocol = $3,
+    auth_password = $4,
+    priv_protocol = $5,
+    priv_password = $6,
+    v3_user = $7,
+    engine_id = $8,
+    timeout = $9,
+    poll_interval = $10,
+    retries = $11
+WHERE template_id = $12
+`
+
+type UpdateSnmpV3ParametersParams struct {
+	Port          int32  `json:"port"`
+	SecurityLevel string `json:"security_level"`
+	AuthProtocol  string `json:"auth_protocol"`
+	AuthPassword  string `json:"auth_password"`
+	PrivProtocol  string `json:"priv_protocol"`
+	PrivPassword  string `json:"priv_password"`
+	V3User        string `json:"v3_user"`
+	EngineID      string `json:"engine_id"`
+	Timeout       int32  `json:"timeout"`
+	PollInterval  int32  `json:"poll_interval"`
+	Retries       int32  `json:"retries"`
+	TemplateID    int32  `json:"template_id"`
+}
+
+func (q *Queries) UpdateSnmpV3Parameters(ctx context.Context, arg UpdateSnmpV3ParametersParams) error {
+	_, err := q.db.Exec(ctx, updateSnmpV3Parameters,
+		arg.Port,
+		arg.SecurityLevel,
+		arg.AuthProtocol,
+		arg.AuthPassword,
+		arg.PrivProtocol,
+		arg.PrivPassword,
+		arg.V3User,
+		arg.EngineID,
+		arg.Timeout,
+		arg.PollInterval,
+		arg.Retries,
+		arg.TemplateID,
 	)
 	return err
 }

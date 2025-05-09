@@ -33,7 +33,7 @@ type Session struct {
 }
 
 type SnmpTemplate struct {
-	ID          int64     `json:"id"`
+	ID          int32     `json:"id"`
 	Name        string    `json:"name"`
 	UserID      int32     `json:"user_id"`
 	Protocol    string    `json:"protocol"`
@@ -47,19 +47,22 @@ type SnmpTemplate struct {
 type Snmpv2Parameter struct {
 	ID             int32  `json:"id"`
 	TemplateID     int32  `json:"template_id"`
-	Port           string `json:"port"`
+	Port           int32  `json:"port"`
+	Timeout        int32  `json:"timeout"`
+	PollInterval   int32  `json:"poll_interval"`
+	Retries        int32  `json:"retries"`
 	ReadCommunity  string `json:"read_community"`
 	WriteCommunity string `json:"write_community"`
 	TrapCommunity  string `json:"trap_community"`
-	Timeout        string `json:"timeout"`
-	PollInterval   string `json:"poll_interval"`
-	Retries        string `json:"retries"`
 }
 
 type Snmpv3Parameter struct {
 	ID            int32  `json:"id"`
 	TemplateID    int32  `json:"template_id"`
-	Port          string `json:"port"`
+	Port          int32  `json:"port"`
+	Timeout       int32  `json:"timeout"`
+	PollInterval  int32  `json:"poll_interval"`
+	Retries       int32  `json:"retries"`
 	SecurityLevel string `json:"security_level"`
 	AuthProtocol  string `json:"auth_protocol"`
 	AuthPassword  string `json:"auth_password"`
@@ -67,13 +70,10 @@ type Snmpv3Parameter struct {
 	PrivPassword  string `json:"priv_password"`
 	V3User        string `json:"v3_user"`
 	EngineID      string `json:"engine_id"`
-	Timeout       string `json:"timeout"`
-	PollInterval  string `json:"poll_interval"`
-	Retries       string `json:"retries"`
 }
 
 type User struct {
-	ID        int64     `json:"id"`
+	ID        int32     `json:"id"`
 	Username  string    `json:"username"`
 	Password  string    `json:"password"`
 	Role      string    `json:"role"`

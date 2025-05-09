@@ -134,16 +134,21 @@ func detectVendorFromDescription(descr string) string {
 }
 
 func (c *SNMPClient) GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, error) {
+	var err error
+	var version gosnmp.SnmpVersion
+
 	// 配置 SNMPv3 参数
-	version, err := ConvertSNMPVersion(req.SNMPVersion)
+	version, err = ConvertSNMPVersion(req.SNMPVersion)
 	if err != nil {
 		return nil, err
 	}
-	authProtocol, err := ConvertAuthProtocol(req.AuthenticationProtocol)
+	var authProtocol gosnmp.SnmpV3AuthProtocol
+	authProtocol, err = ConvertAuthProtocol(req.AuthenticationProtocol)
 	if err != nil {
 		return nil, err
 	}
-	privProtocol, err := ConvertPrivProtocol(req.PrivacyProtocol)
+	var privProtocol gosnmp.SnmpV3PrivProtocol
+	privProtocol, err = ConvertPrivProtocol(req.PrivacyProtocol)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +170,7 @@ func (c *SNMPClient) GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, e
 		Timeout: 10 * time.Second,
 	}
 	// 连接设备
-	if err := snmp.Connect(); err != nil {
+	if err = snmp.Connect(); err != nil {
 		return nil, fmt.Errorf("SNMP connect failed: %v", err)
 	}
 	defer snmp.Conn.Close()
@@ -178,8 +183,8 @@ func (c *SNMPClient) GetDeviceInfo(req *model.SNMPRequest) (*model.DeviceInfo, e
 		oids = append(oids, oid)
 	}
 	fmt.Println(oids)
-
-	result, err := snmp.Get(oids)
+	var result *gosnmp.SnmpPacket
+	result, err = snmp.Get(oids)
 	if err != nil {
 		return nil, fmt.Errorf("SNMP get failed: %v", err)
 	}

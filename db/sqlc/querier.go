@@ -13,30 +13,47 @@ import (
 type Querier interface {
 	CreateDevice(ctx context.Context, arg CreateDeviceParams) error
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
-	CreateSnmpTemplateBase(ctx context.Context, arg CreateSnmpTemplateBaseParams) (int64, error)
-	CreateSnmpTemplateWithV2Parameters(ctx context.Context, arg CreateSnmpTemplateWithV2ParametersParams) error
-	CreateSnmpTemplateWithV3Parameters(ctx context.Context, arg CreateSnmpTemplateWithV3ParametersParams) error
+	// CreateSnmpTemplateBase creates a new SNMP template base record
+	// and returns the newly created template ID
+	CreateSnmpTemplateBase(ctx context.Context, arg CreateSnmpTemplateBaseParams) (int32, error)
+	// CreateSnmpV2Template creates SNMP v2c specific parameters
+	CreateSnmpV2Template(ctx context.Context, arg CreateSnmpV2TemplateParams) error
+	// CreateSnmpV3Template creates SNMP v3 specific parameters
+	CreateSnmpV3Template(ctx context.Context, arg CreateSnmpV3TemplateParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteDevice(ctx context.Context, deviceID int32) error
-	DeleteSnmpTemplateWithParameters(ctx context.Context, templateID int32) error
+	DeleteSnmpTemplateBase(ctx context.Context, id int32) error
+	DeleteSnmpV2Parameters(ctx context.Context, templateID int32) error
+	DeleteSnmpV3Parameters(ctx context.Context, templateID int32) error
 	DeleteUser(ctx context.Context, username string) error
 	GetAllUsers(ctx context.Context) ([]User, error)
 	GetDeviceById(ctx context.Context, deviceID int32) (Device, error)
 	GetDeviceByIp(ctx context.Context, ip string) (Device, error)
 	GetSession(ctx context.Context, id uuid.UUID) (Session, error)
-	GetSnmpTemplateWithParameters(ctx context.Context, id int64) (GetSnmpTemplateWithParametersRow, error)
+	// GetSnmpTemplateBase retrieves base SNMP template information
+	GetSnmpTemplateBase(ctx context.Context, id int32) (SnmpTemplate, error)
+	// GetSnmpV2Parameters retrieves SNMP v2c specific parameters
+	GetSnmpV2Parameters(ctx context.Context, templateID int32) (GetSnmpV2ParametersRow, error)
+	// GetSnmpV3Parameters retrieves SNMP v3 specific parameters
+	GetSnmpV3Parameters(ctx context.Context, templateID int32) (GetSnmpV3ParametersRow, error)
 	GetUser(ctx context.Context, username string) (User, error)
-	GetUserById(ctx context.Context, id int64) (User, error)
+	GetUserById(ctx context.Context, id int32) (User, error)
 	ListDevices(ctx context.Context, arg ListDevicesParams) ([]Device, error)
-	ListSnmpTemplatesWithParameters(ctx context.Context, arg ListSnmpTemplatesWithParametersParams) ([]ListSnmpTemplatesWithParametersRow, error)
+	// ListSnmpTemplatesBase retrieves paginated list of base SNMP template information
+	ListSnmpTemplatesBase(ctx context.Context, arg ListSnmpTemplatesBaseParams) ([]SnmpTemplate, error)
+	// ListSnmpV2Parameters retrieves SNMP v2c parameters for multiple templates
+	ListSnmpV2Parameters(ctx context.Context, dollar_1 []int32) ([]ListSnmpV2ParametersRow, error)
+	// ListSnmpV3Parameters retrieves SNMP v3 parameters for multiple templates
+	ListSnmpV3Parameters(ctx context.Context, dollar_1 []int32) ([]ListSnmpV3ParametersRow, error)
 	UpdateDeviceAll(ctx context.Context, arg UpdateDeviceAllParams) error
 	UpdateDeviceIP(ctx context.Context, arg UpdateDeviceIPParams) error
 	UpdateDeviceModel(ctx context.Context, arg UpdateDeviceModelParams) error
 	UpdateDeviceName(ctx context.Context, arg UpdateDeviceNameParams) error
 	UpdateDeviceType(ctx context.Context, arg UpdateDeviceTypeParams) error
 	UpdateDeviceVendor(ctx context.Context, arg UpdateDeviceVendorParams) error
-	UpdateSnmpTemplateWithParameters(ctx context.Context, arg UpdateSnmpTemplateWithParametersParams) error
-	UpdateSnmpTemplateWithV3Parameters(ctx context.Context, arg UpdateSnmpTemplateWithV3ParametersParams) error
+	UpdateSnmpTemplateBase(ctx context.Context, arg UpdateSnmpTemplateBaseParams) error
+	UpdateSnmpV2Parameters(ctx context.Context, arg UpdateSnmpV2ParametersParams) error
+	UpdateSnmpV3Parameters(ctx context.Context, arg UpdateSnmpV3ParametersParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 }
 

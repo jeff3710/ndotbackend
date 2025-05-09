@@ -51,7 +51,7 @@ func (s *UserService) CreateUser(ctx *gin.Context, req db.CreateUserParams) erro
 }
 
 type userResponse struct {
-	Id                int64     `json:"id"`
+	Id                int32     `json:"id"`
 	Username          string    `json:"username"`
 	PasswordChangedAt time.Time `json:"password_changed_at"`
 	CreatedAt         time.Time `json:"created_at"`
@@ -85,6 +85,7 @@ func (s *UserService) Login(ctx *gin.Context, username, password string) (*Login
 	}
 
 	accessToken, accessPayload, err := s.maker.CreateToken(
+		user.ID,
 		user.Username,
 		user.Role,
 		s.config.Jwt.AccessTokenDuration,
@@ -95,6 +96,7 @@ func (s *UserService) Login(ctx *gin.Context, username, password string) (*Login
 	}
 
 	refreshToken, refreshPayload, err := s.maker.CreateToken(
+		user.ID,
 		user.Username,
 		user.Role,
 		s.config.Jwt.RefreshTokenDuration,
@@ -129,7 +131,7 @@ func (s *UserService) Login(ctx *gin.Context, username, password string) (*Login
 }
 
 type GetUserResponse struct {
-	Id        int64     `json:"id"`
+	Id        int32     `json:"id"`
 	Username  string    `json:"username"`
 	Role      string    `json:"role"`
 	Active    bool      `json:"active"`
@@ -158,7 +160,7 @@ func (s *UserService) GetUser(ctx *gin.Context, username string) (*GetUserRespon
 
 }
 func (s *UserService) GetUserById(ctx *gin.Context, userId string) (*GetUserResponse, error) {
-	id, err := util.StringToInt64(userId)
+	id, err := util.StringToInt32(userId)
 	if err != nil {
 		return nil, fmt.Errorf("invalid user id: %w", err) // 或者其他错误处理逻辑，如返回 400 Bad Reques
 	}
@@ -221,6 +223,7 @@ func (s *UserService) RenewAccessToken(ctx *gin.Context, refreshToken string) (s
 		return "", nil, fmt.Errorf("expired session")
 	}
 	accessToken, accessPayload, err := s.maker.CreateToken(
+		refreshPayload.UserID,
 		refreshPayload.Username,
 		refreshPayload.Role,
 		s.config.Jwt.AccessTokenDuration,

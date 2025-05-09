@@ -10,13 +10,7 @@ import (
 )
 
 func NewDeviceRouter(config *config.Config, db db.Store, group *gin.RouterGroup) {
-	// 当db.Store是接口类型时（常见于sqlc生成的代码）
-	// 保持当前的值传递方式是正确用法
-	// 因为接口本身已经隐含指针语义
 
-	// 当db.Store是结构体类型时（较少见）
-	// 应该改为指针传递：db *db.Store
-	// 以避免结构体复制的性能开销
 
 	snmp := snmp.NewSNMPClient(config)
 	
@@ -26,4 +20,5 @@ func NewDeviceRouter(config *config.Config, db db.Store, group *gin.RouterGroup)
 	group.POST("/devicesadd", deviceHandler.CollectDevice)
 	group.POST("/devicesid", deviceHandler.GetDeviceById)
 	group.POST("/devicesip", deviceHandler.GetDeviceByIp)
+	group.POST("/snmptemplate", deviceHandler.AddSnmpTemplate)
 }
